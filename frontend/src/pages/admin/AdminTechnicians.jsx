@@ -4,6 +4,7 @@ import PageHeader from '../../components/layout/PageHeader';
 import SectionCard from '../../components/common/SectionCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import { Alert, LoadingBlock, EmptyBlock } from '../../components/common/Feedback';
+import SearchInputWithSuggestions from '../../components/common/SearchInputWithSuggestions';
 import { userService } from '../../services/dataService';
 
 const AdminTechnicians = () => {
@@ -45,6 +46,25 @@ const AdminTechnicians = () => {
     });
   }, [techs, q, statusFilter]);
 
+  const techSuggestions = useMemo(() => {
+    const trimmed = q.trim().toLowerCase();
+    if (trimmed.length < 2) return [];
+
+    return techs
+      .filter((t) =>
+        [t.name, t.userId, t.specialization, t.department, t.availabilityStatus]
+          .some((v) => String(v || '').toLowerCase().includes(trimmed))
+      )
+      .slice(0, 8)
+      .map((t) => ({
+        title: t.name,
+        subtitle: `${t.specialization || 'Biomedical'} • ${t.department || 'Hospital'} (${t.activeWorkload || 0} active)`,
+        badge: t.userId,
+        icon: Users,
+        onSelect: () => setQ(t.name),
+      }));
+  }, [q, techs]);
+
   if (loading && techs.length === 0) {
     return <LoadingBlock text="Loading biomedical technician directory..." />;
   }
@@ -62,21 +82,13 @@ const AdminTechnicians = () => {
       {/* Search & Status Filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+          <SearchInputWithSuggestions
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={setQ}
             placeholder="Search by technician name, ID (e.g. TEC-001), specialization, ward..."
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-xs text-slate-800 placeholder-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+            suggestions={techSuggestions}
+            minChars={2}
           />
-          {q && (
-            <button
-              onClick={() => setQ('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X size={15} />
-            </button>
-          )}
         </div>
 
         {/* Availability Filter Buttons */}

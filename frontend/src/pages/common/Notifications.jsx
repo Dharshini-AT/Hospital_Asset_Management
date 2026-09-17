@@ -5,6 +5,7 @@ import SectionCard from '../../components/common/SectionCard';
 import Button from '../../components/common/Button';
 import { Alert, EmptyBlock, LoadingBlock } from '../../components/common/Feedback';
 import StatusBadge from '../../components/common/StatusBadge';
+import SearchInputWithSuggestions from '../../components/common/SearchInputWithSuggestions';
 import { notificationService } from '../../services/dataService';
 
 const Notifications = () => {
@@ -71,6 +72,25 @@ const Notifications = () => {
     });
   }, [d.items, q, filter]);
 
+  const notifSuggestions = useMemo(() => {
+    const trimmed = q.trim().toLowerCase();
+    if (trimmed.length < 2) return [];
+
+    return (d.items || [])
+      .filter((n) =>
+        [n.title, n.message, n.type]
+          .some((v) => String(v || '').toLowerCase().includes(trimmed))
+      )
+      .slice(0, 8)
+      .map((n) => ({
+        title: n.title,
+        subtitle: n.message,
+        badge: n.type || 'NOTIFICATION',
+        icon: Bell,
+        onSelect: () => setQ(n.title),
+      }));
+  }, [q, d.items]);
+
   if (loading && (!d.items || d.items.length === 0)) {
     return <LoadingBlock text="Loading notifications from MongoDB..." />;
   }
@@ -102,21 +122,13 @@ const Notifications = () => {
       {/* Search & Filter Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+          <SearchInputWithSuggestions
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={setQ}
             placeholder="Search notification title, message content..."
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-xs text-slate-800 placeholder-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+            suggestions={notifSuggestions}
+            minChars={2}
           />
-          {q && (
-            <button
-              onClick={() => setQ('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X size={15} />
-            </button>
-          )}
         </div>
 
         {/* Read / Unread Filter Pills */}

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import PageHeader from '../../components/layout/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import { EmptyBlock, Alert, LoadingBlock } from '../../components/common/Feedback';
+import SearchInputWithSuggestions from '../../components/common/SearchInputWithSuggestions';
 import { historyService } from '../../services/dataService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -67,6 +68,58 @@ const AdminHistory = () => {
     });
   }, [data, q, selectedType]);
 
+  const historySuggestions = useMemo(() => {
+    const trimmed = q.trim().toLowerCase();
+    if (trimmed.length < 2) return [];
+
+    const map = new Map();
+
+    data.forEach((h) => {
+      const assetName = h.assetId?.assetName;
+      const assetId = h.assetId?.assetId;
+      const diag = h.diagnosis;
+      const techName = h.technicianId?.name;
+
+      if (assetName && assetName.toLowerCase().includes(trimmed) && !map.has(assetName)) {
+        map.set(assetName, {
+          title: assetName,
+          subtitle: `Equipment • ${h.assetId?.department || 'Hospital'}`,
+          badge: assetId || h.historyId,
+          icon: Wrench,
+        });
+      }
+
+      if (assetId && assetId.toLowerCase().includes(trimmed) && !map.has(assetId)) {
+        map.set(assetId, {
+          title: `${assetName || 'Equipment'} (${assetId})`,
+          subtitle: `Asset ID • ${h.historyId}`,
+          badge: assetId,
+          icon: Wrench,
+        });
+      }
+
+      if (h.historyId && h.historyId.toLowerCase().includes(trimmed) && !map.has(h.historyId)) {
+        map.set(h.historyId, {
+          title: `Ticket ${h.historyId}`,
+          subtitle: `${assetName || 'Equipment'} • ₹${h.maintenanceCost}`,
+          badge: h.historyId,
+          icon: History,
+        });
+      }
+
+      if (diag && diag.toLowerCase().includes(trimmed) && !map.has(diag)) {
+        map.set(diag, {
+          title: diag,
+          subtitle: `Diagnosis • ${assetName || 'Equipment'}`,
+          badge: h.historyId,
+          icon: Wrench,
+        });
+      }
+    });
+
+    return Array.from(map.values()).slice(0, 8);
+  }, [q, data]);
+
   const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
   const paginatedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -94,27 +147,16 @@ const AdminHistory = () => {
       {/* Search & Filter Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-xl">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+          <SearchInputWithSuggestions
             value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
+            onChange={(val) => {
+              setQ(val);
               setPage(1);
             }}
-            placeholder="Search by equipment name, asset ID (e.g. IP-102), technician, diagnosis, parts..."
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-xs text-slate-800 placeholder-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+            placeholder="Search by equipment name, asset ID (e.g. IP-102), technician, diagnosis..."
+            suggestions={historySuggestions}
+            minChars={2}
           />
-          {q && (
-            <button
-              onClick={() => {
-                setQ('');
-                setPage(1);
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X size={15} />
-            </button>
-          )}
         </div>
 
         {/* Maintenance Type Filter Pills */}

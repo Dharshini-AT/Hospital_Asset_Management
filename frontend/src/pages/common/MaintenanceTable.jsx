@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import StatusBadge from '../../components/common/StatusBadge';
 import PriorityBadge from '../../components/common/PriorityBadge';
 import { EmptyBlock } from '../../components/common/Feedback';
+import SearchInputWithSuggestions from '../../components/common/SearchInputWithSuggestions';
 
 const MaintenanceTable = ({ requests = [], basePath, action, showSearch = true }) => {
   const nav = useNavigate();
@@ -45,6 +46,49 @@ const MaintenanceTable = ({ requests = [], basePath, action, showSearch = true }
     });
   }, [requests, q, statusFilter, priorityFilter]);
 
+  const requestSuggestions = useMemo(() => {
+    const trimmed = q.trim().toLowerCase();
+    if (trimmed.length < 2) return [];
+
+    const map = new Map();
+
+    requests.forEach((r) => {
+      const assetName = r.assetId?.assetName;
+      const assetId = r.assetId?.assetId;
+      const reqId = r.requestId;
+      const issue = r.issueDescription;
+
+      if (assetName && assetName.toLowerCase().includes(trimmed) && !map.has(assetName)) {
+        map.set(assetName, {
+          title: assetName,
+          subtitle: `Equipment • ${r.assetId?.department || 'Hospital'}`,
+          badge: assetId || reqId,
+          icon: Wrench,
+        });
+      }
+
+      if (assetId && assetId.toLowerCase().includes(trimmed) && !map.has(assetId)) {
+        map.set(assetId, {
+          title: `${assetName || 'Equipment'} (${assetId})`,
+          subtitle: `Ticket ${reqId} • ${r.priority} Priority`,
+          badge: assetId,
+          icon: Wrench,
+        });
+      }
+
+      if (reqId && reqId.toLowerCase().includes(trimmed) && !map.has(reqId)) {
+        map.set(reqId, {
+          title: `Request ${reqId}`,
+          subtitle: `${assetName || 'Equipment'} • ${r.status}`,
+          badge: reqId,
+          icon: Eye,
+        });
+      }
+    });
+
+    return Array.from(map.values()).slice(0, 8);
+  }, [q, requests]);
+
   const totalPages = Math.ceil(filteredRequests.length / pageSize) || 1;
   const paginatedRequests = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -57,28 +101,16 @@ const MaintenanceTable = ({ requests = [], basePath, action, showSearch = true }
       {showSearch && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
+            <SearchInputWithSuggestions
               value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
+              onChange={(val) => {
+                setQ(val);
                 setPage(1);
               }}
-              placeholder="Search by equipment, request ID, issue, priority..."
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9.5 pr-8 text-xs text-slate-800 placeholder-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+              placeholder="Search by equipment, asset ID (e.g. IP-102), request ID, issue..."
+              suggestions={requestSuggestions}
+              minChars={2}
             />
-            {q && (
-              <button
-                onClick={() => {
-                  setQ('');
-                  setPage(1);
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X size={14} />
-              </button>
-            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

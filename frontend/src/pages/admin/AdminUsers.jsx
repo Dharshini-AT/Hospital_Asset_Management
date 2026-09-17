@@ -6,6 +6,7 @@ import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import FormField, { inputClass, selectClass } from '../../components/common/FormField';
 import { Alert, LoadingBlock } from '../../components/common/Feedback';
+import SearchInputWithSuggestions from '../../components/common/SearchInputWithSuggestions';
 import { userService } from '../../services/dataService';
 
 const initialForm = {
@@ -100,6 +101,24 @@ const AdminUsers = () => {
       .some((v) => String(v || '').toLowerCase().includes(q.toLowerCase()))
   );
 
+  const userSuggestions = useMemo(() => {
+    const trimmed = q.trim().toLowerCase();
+    if (trimmed.length < 2) return [];
+
+    return data
+      .filter((u) =>
+        [u.name, u.email, u.userId, u.role, u.department, u.designation]
+          .some((v) => String(v || '').toLowerCase().includes(trimmed))
+      )
+      .slice(0, 8)
+      .map((u) => ({
+        title: u.name,
+        subtitle: `${u.role} • ${u.department || 'General'} (${u.designation || 'Staff'})`,
+        badge: u.userId,
+        onSelect: () => setQ(u.name),
+      }));
+  }, [q, data]);
+
   if (loading && data.length === 0) {
     return <LoadingBlock text="Loading authorized hospital users from database..." />;
   }
@@ -129,14 +148,14 @@ const AdminUsers = () => {
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="mb-5 relative">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
+      {/* Search Bar with auto-suggestions */}
+      <div className="mb-5 max-w-xl">
+        <SearchInputWithSuggestions
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by user name, ID, role, department or email..."
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-xs shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+          onChange={setQ}
+          placeholder="Search by user name, ID (e.g. ADM-001), role, department or email..."
+          suggestions={userSuggestions}
+          minChars={2}
         />
       </div>
 

@@ -7,6 +7,7 @@ import { LoadingBlock, Alert } from '../../components/common/Feedback';
 import Modal from '../../components/common/Modal';
 import FormField, { inputClass, selectClass } from '../../components/common/FormField';
 import Button from '../../components/common/Button';
+import SearchInputWithSuggestions from '../../components/common/SearchInputWithSuggestions';
 import pumpImage from '../../assets/images/infusion_pump.svg';
 
 export default function AssetList({ mode = 'view' }) {
@@ -57,10 +58,41 @@ export default function AssetList({ mode = 'view' }) {
     const q = search.trim().toLowerCase();
     if (!q) return assets;
     return assets.filter((a) =>
-      [a.assetId, a.assetName, a.category, a.location, a.department, a.manufacturer, a.model]
+      [a.assetId, a.assetName, a.category, a.location, a.department, a.manufacturer, a.model, a.serialNumber, a.currentStatus, a.currentCondition]
         .some((v) => String(v || '').toLowerCase().includes(q))
     );
   }, [assets, search]);
+
+  const assetSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q.length < 2) return [];
+
+    return assets
+      .filter((a) =>
+        [
+          a.assetId,
+          a.assetName,
+          a.category,
+          a.department,
+          a.location,
+          a.manufacturer,
+          a.model,
+          a.serialNumber,
+          a.currentStatus,
+        ].some((v) => String(v || '').toLowerCase().includes(q))
+      )
+      .slice(0, 8)
+      .map((a) => ({
+        title: a.assetName,
+        subtitle: `${a.category || 'Medical Equipment'} • ${a.department || 'ICU'} (${a.location || 'Hospital'})`,
+        badge: a.assetId,
+        icon: Package,
+        onSelect: () => {
+          setSearch(a.assetName);
+          setSelectedAsset(a);
+        },
+      }));
+  }, [search, assets]);
 
   const totalPages = Math.ceil(filteredAssets.length / pageSize) || 1;
   const paginatedAssets = useMemo(() => {
@@ -144,18 +176,17 @@ export default function AssetList({ mode = 'view' }) {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Search bar */}
+          {/* Search bar with auto-suggestions */}
           <div className="relative min-w-[280px] sm:min-w-[360px]">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
+            <SearchInputWithSuggestions
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+              onChange={(val) => {
+                setSearch(val);
                 setPage(1);
               }}
-              placeholder="Search assets by ID, name, category, department..."
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              placeholder="Search assets by name, ID (e.g. IP-102), category..."
+              suggestions={assetSuggestions}
+              minChars={2}
             />
           </div>
 

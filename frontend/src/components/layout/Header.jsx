@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
-import { Bell, ChevronDown, LogOut, Menu, User, Search, Package, Wrench, X } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Bell, ChevronDown, LogOut, Menu, User, Package } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService, assetService } from '../../services/dataService';
+import SearchInputWithSuggestions from '../common/SearchInputWithSuggestions';
 
 export default function Header({ setMobileOpen }) {
   const { user, logout } = useAuth();
@@ -13,9 +14,6 @@ export default function Header({ setMobileOpen }) {
   // Global Header Search
   const [globalQuery, setGlobalQuery] = useState('');
   const [allAssets, setAllAssets] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef(null);
 
   const rolePath = user?.role?.toLowerCase() || 'admin';
 
@@ -34,63 +32,44 @@ export default function Header({ setMobileOpen }) {
     return () => clearInterval(interval);
   }, [user?.userId]);
 
-  // Pre-load assets for instant global search in header
+  // Pre-load assets for instant global search suggestions in header
   useEffect(() => {
     assetService.list({ limit: 100 })
       .then((res) => setAllAssets(res?.assets || []))
       .catch(() => {});
   }, []);
 
-  // Handle global search filtering
-  useEffect(() => {
+  // Compute live auto-suggestions for header search from 2+ characters
+  const headerSuggestions = useMemo(() => {
     const q = globalQuery.trim().toLowerCase();
-    if (!q) {
-      setSearchResults([]);
-      setSearchOpen(false);
-      return;
-    }
+    if (q.length < 2) return [];
 
-    const matches = allAssets.filter((a) =>
-      [
-        a.assetId,
-        a.assetName,
-        a.category,
-        a.department,
-        a.location,
-        a.serialNumber,
-        a.manufacturer,
-        a.model,
-      ].some((val) => String(val || '').toLowerCase().includes(q))
-    ).slice(0, 6);
-
-    setSearchResults(matches);
-    setSearchOpen(true);
-  }, [globalQuery, allAssets]);
-
-  // Click outside to close search dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setSearchOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSelectSearchResult = (assetId) => {
-    setGlobalQuery('');
-    setSearchOpen(false);
-    navigate(`/${rolePath}/assets/${assetId}`);
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (globalQuery.trim()) {
-      setSearchOpen(false);
-      navigate(`/${rolePath}/assets`);
-    }
-  };
+    return allAssets
+      .filter((a) =>
+        [
+          a.assetId,
+          a.assetName,
+          a.category,
+          a.department,
+          a.location,
+          a.serialNumber,
+          a.manufacturer,
+          a.model,
+          a.currentStatus,
+        ].some((val) => String(val || '').toLowerCase().includes(q))
+      )
+      .slice(0, 7)
+      .map((a) => ({
+        title: a.assetName,
+        subtitle: `${a.category || 'Medical Equipment'} • ${a.department || 'General'} (${a.location || 'Hospital'})`,
+        badge: a.assetId,
+        icon: Package,
+        onSelect: () => {
+          setGlobalQuery('');
+          navigate(`/${rolePath}/assets/${a.assetId}`);
+        },
+      }));
+  }, [globalQuery, allAssets, rolePath, navigate]);
 
   const handleNotificationClick = () => {
     navigate(`/${rolePath}/notifications`);
@@ -119,80 +98,16 @@ export default function Header({ setMobileOpen }) {
           <Menu size={22} />
         </button>
 
-        {/* Global Instant Equipment Search */}
-        <div ref={searchRef} className="relative w-full max-w-md hidden sm:block">
-          <form onSubmit={handleSearchSubmit}>
-            <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={globalQuery}
-                onChange={(e) => setGlobalQuery(e.target.value)}
-                onFocus={() => {
-                  if (globalQuery.trim()) setSearchOpen(true);
-                }}
-                placeholder="Search medical equipment by name, ID, category, ward..."
-                className="h-9.5 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9.5 pr-8 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
-              />
-              {globalQuery && (
-                <button
-                  type="button"
-                  onClick={() => setGlobalQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </form>
-
-          {/* Quick Autocomplete Suggestions Dropdown */}
-          {searchOpen && (
-            <div className="absolute left-0 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl z-50 animate-scale-in">
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                Equipment Matches ({searchResults.length})
-              </div>
-
-              {searchResults.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-400">
-                  No medical equipment found for "{globalQuery}"
-                </div>
-              ) : (
-                <div className="space-y-1 mt-1 max-h-72 overflow-y-auto">
-                  {searchResults.map((a) => (
-                    <button
-                      key={a.assetId}
-                      onClick={() => handleSelectSearchResult(a.assetId)}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-blue-50/50 transition cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 font-mono text-[10px] font-bold">
-                          <Package size={14} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-800 truncate">
-                            {a.assetName}
-                          </p>
-                          <p className="text-[10px] text-slate-400 truncate">
-                            {a.department || 'General'} • {a.location || 'Hospital'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="font-mono text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                          {a.assetId}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+        {/* Global Instant Equipment Search with Auto-Suggestions */}
+        <div className="w-full max-w-md hidden sm:block">
+          <SearchInputWithSuggestions
+            value={globalQuery}
+            onChange={setGlobalQuery}
+            placeholder="Search medical equipment by name, ID (e.g. IP-102), category..."
+            suggestions={headerSuggestions}
+            minChars={2}
+            inputClassName="h-10 bg-slate-50/80 border-slate-200 focus:bg-white"
+          />
         </div>
       </div>
 
