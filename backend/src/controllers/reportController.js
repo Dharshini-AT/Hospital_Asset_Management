@@ -127,10 +127,14 @@ const getOperationalReports = async (req, res, next) => {
     );
 
     // 5. Warranty Report
-    const [activeWarranties, expiringWarranties, expiredWarranties] = await Promise.all([
+    const [activeWarranties, expiringWarranties, expiredWarranties, expiringAssets] = await Promise.all([
       Asset.countDocuments({ warrantyEndDate: { $gt: in30Days } }),
       Asset.countDocuments({ warrantyEndDate: { $gte: now, $lte: in30Days } }),
       Asset.countDocuments({ warrantyEndDate: { $lt: now } }),
+      Asset.find({ warrantyEndDate: { $gte: now, $lte: in30Days } })
+        .select('assetId assetName department warrantyEndDate model')
+        .sort({ warrantyEndDate: 1 })
+        .limit(6),
     ]);
 
     // 6. Asset Reliability: Repeated Failures
@@ -194,6 +198,7 @@ const getOperationalReports = async (req, res, next) => {
           active: activeWarranties,
           expiringSoon: expiringWarranties,
           expired: expiredWarranties,
+          expiringAssets: expiringAssets || [],
         },
         assetReliability: {
           frequentlyRepaired: frequentFailures,
