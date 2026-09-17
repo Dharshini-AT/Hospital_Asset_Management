@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 const Modal = ({
@@ -18,19 +19,11 @@ const Modal = ({
       }
     };
 
-    document.addEventListener(
-      "keydown",
-      handleEscape
-    );
-
+    document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener(
-        "keydown",
-        handleEscape
-      );
-
+      document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
   }, [isOpen, onClose]);
@@ -46,127 +39,45 @@ const Modal = ({
     xl: "max-w-4xl",
   };
 
-  return (
+  return createPortal(
     <div
-      className="
-        fixed
-        inset-0
-        z-[100]
-
-        flex
-        items-center
-        justify-center
-
-        bg-slate-950/40
-        p-4
-
-        backdrop-blur-sm
-
-        animate-[fadeIn_0.2s_ease-out]
-      "
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm transition-all"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
-
       <div
-        className={`
-          w-full
-          ${sizes[size] || sizes.md}
-
-          overflow-hidden
-
-          rounded-2xl
-
-          border
-          border-slate-200
-
-          bg-white
-
-          shadow-[0_25px_80px_rgba(15,23,42,0.18)]
-
-          animate-[fadeInUp_0.25s_ease-out]
-        `}
+        className={`relative my-auto w-full ${sizes[size] || sizes.md} overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all`}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-
         {/* Header */}
-        <div
-          className="
-            flex
-            items-start
-            justify-between
-
-            border-b
-            border-slate-100
-
-            px-5
-            py-4
-          "
-        >
-
+        <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-4">
           <div>
-
-            <h2
-              className="
-                text-base
-                font-bold
-                text-slate-800
-              "
-            >
-              {title}
-            </h2>
-
+            <h2 className="text-base font-bold text-slate-900">{title}</h2>
             {description && (
-              <p
-                className="
-                  mt-1
-                  text-xs
-                  text-slate-500
-                "
-              >
-                {description}
-              </p>
+              <p className="mt-0.5 text-xs text-slate-500">{description}</p>
             )}
-
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="
-              flex
-              h-8
-              w-8
-              items-center
-              justify-center
-
-              rounded-lg
-
-              text-slate-400
-
-              transition-all
-              duration-200
-
-              hover:bg-slate-100
-              hover:text-slate-700
-            "
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-200/60 hover:text-slate-700"
           >
-            <X size={17} />
+            <X size={18} />
           </button>
-
         </div>
 
         {/* Content */}
-        <div className="max-h-[75vh] overflow-y-auto p-5">
+        <div className="max-h-[calc(85vh-80px)] overflow-y-auto p-6">
           {children}
         </div>
-
       </div>
-
-    </div>
+    </div>,
+    document.body
   );
 };
 
-export default Modal;
+export default Modal;
