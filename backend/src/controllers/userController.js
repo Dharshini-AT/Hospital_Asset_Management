@@ -196,14 +196,12 @@ const getTechnicians = async (req, res, next) => {
   }
 };
 
-// @desc    Get available technicians (for assignment dropdown)
-// @route   GET /api/users/technicians/available
-// @access  Private
 const getAvailableTechnicians = async (req, res, next) => {
   try {
     const technicians = await User.find({
       role: ROLES.TECHNICIAN,
       accountStatus: 'ACTIVE',
+      availabilityStatus: AVAILABILITY_STATUS.AVAILABLE,
     }).select('userId name email phone specialization department availabilityStatus');
 
     // Attach workload

@@ -39,15 +39,20 @@ export default function MaintenanceDetails() {
       ]);
 
       setRequest(reqData);
-      setTechnicians(techs || []);
+      
+      // Sort technicians: AVAILABLE first
+      const sortedTechs = (techs || []).sort((a, b) => {
+        if (a.availabilityStatus === 'AVAILABLE' && b.availabilityStatus !== 'AVAILABLE') return -1;
+        if (a.availabilityStatus !== 'AVAILABLE' && b.availabilityStatus === 'AVAILABLE') return 1;
+        return 0;
+      });
+      setTechnicians(sortedTechs);
 
-      if (techs && techs.length > 0) {
-        const available = techs.find((t) => t.availabilityStatus === 'AVAILABLE');
-        if (available) {
-          setSelectedTechId(available.userId || available._id);
-        } else {
-          setSelectedTechId(techs[0].userId || techs[0]._id);
-        }
+      const firstAvailable = sortedTechs.find((t) => t.availabilityStatus === 'AVAILABLE');
+      if (firstAvailable) {
+        setSelectedTechId(firstAvailable.userId || firstAvailable._id);
+      } else {
+        setSelectedTechId('');
       }
 
       // Pre-fill form if existing
@@ -380,14 +385,34 @@ export default function MaintenanceDetails() {
       {/* 1. ADMIN ASSIGN TECHNICIAN TABLE (Screenshot 4) */}
       {isAdmin && request.status === 'PENDING' && (
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-[#0a192f]">
-              Assign Technician
-            </h2>
-            <p className="text-xs font-medium text-slate-500 mt-1">
-              Available Technicians
-            </p>
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-[#0a192f]">
+                Assign Technician
+              </h2>
+              <p className="text-xs font-medium text-slate-500 mt-1">
+                Select an available certified technician to assign this maintenance job.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-600 border border-emerald-100">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                {technicians.filter((t) => t.availabilityStatus === 'AVAILABLE').length} Available
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                {technicians.length} Total Techs
+              </span>
+            </div>
           </div>
+
+          {technicians.filter((t) => t.availabilityStatus === 'AVAILABLE').length === 0 && (
+            <div className="mb-4 rounded-xl bg-amber-50 p-4 border border-amber-200 text-xs text-amber-800">
+              <p className="font-bold">⚠️ All technicians are currently Busy or Offline.</p>
+              <p className="mt-1 text-amber-700">
+                Technicians automatically become Available when they complete their active maintenance jobs, or an Administrator can adjust their availability status in User Management.
+              </p>
+            </div>
+          )}
 
           <div className="overflow-x-auto rounded-xl border border-slate-100">
             <table className="w-full text-left text-xs">
@@ -407,9 +432,15 @@ export default function MaintenanceDetails() {
                   return (
                     <tr
                       key={tech.userId}
-                      onClick={() => setSelectedTechId(tech.userId)}
-                      className={`hover:bg-slate-50/80 transition cursor-pointer ${
-                        isSelected ? 'bg-blue-50/50' : ''
+                      onClick={() => {
+                        if (isAvailable) setSelectedTechId(tech.userId);
+                      }}
+                      className={`transition ${
+                        !isAvailable
+                          ? 'opacity-60 bg-slate-50/40 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-blue-50/60 cursor-pointer'
+                          : 'hover:bg-slate-50/80 cursor-pointer'
                       }`}
                     >
                       <td className="py-3.5 px-4 font-semibold text-slate-800">
@@ -425,20 +456,25 @@ export default function MaintenanceDetails() {
                         <span
                           className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                             isAvailable
-                              ? 'bg-emerald-50 text-emerald-600'
-                              : 'bg-red-50 text-red-600'
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              : tech.availabilityStatus === 'BUSY'
+                              ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {isAvailable ? 'Available' : 'Busy'}
+                          {isAvailable ? 'Available' : tech.availabilityStatus === 'BUSY' ? 'Busy (On Active Job)' : 'Offline'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <input
                           type="radio"
                           name="technicianSelect"
-                          checked={isSelected}
-                          onChange={() => setSelectedTechId(tech.userId)}
-                          className="h-4 w-4 text-blue-600 cursor-pointer"
+                          disabled={!isAvailable}
+                          checked={isSelected && isAvailable}
+                          onChange={() => {
+                            if (isAvailable) setSelectedTechId(tech.userId);
+                          }}
+                          className={`h-4 w-4 text-blue-600 ${isAvailable ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}
                         />
                       </td>
                     </tr>
@@ -452,7 +488,7 @@ export default function MaintenanceDetails() {
             <button
               onClick={handleAssignTechnician}
               disabled={actionLoading || !selectedTechId}
-              className="flex items-center gap-2 rounded-xl bg-[#0066ff] px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/25 transition hover:bg-blue-600 active:scale-95 disabled:opacity-60 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-[#0066ff] px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/25 transition hover:bg-blue-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <UserCheck size={16} />
               <span>{actionLoading ? 'Assigning...' : 'Assign Technician'}</span>
