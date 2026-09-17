@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const app = require('../app');
-const connectDB = require('../config/db');
+const { connectDB } = require('../config/db');
 const User = require('../models/User');
 const Asset = require('../models/Asset');
 const MaintenanceRequest = require('../models/MaintenanceRequest');
@@ -36,27 +36,27 @@ const runVerification = async () => {
     console.log('\n[Test 1] Logging in Staff (anitha@hospital.com)...');
     const staffLogin = await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'anitha@hospital.com', password: 'password123' }),
+      body: JSON.stringify({ email: 'anitha@hospital.com', password: 'Staff@123' }),
     });
     console.assert(staffLogin.status === 200, `Staff login failed: ${JSON.stringify(staffLogin.data)}`);
     const staffToken = staffLogin.data.data.token;
     console.log('✓ Staff logged in successfully. Token acquired.');
 
-    // 2. Authenticate Admin (Ravi Kumar)
-    console.log('\n[Test 2] Logging in Admin (ravi.kumar@hospital.com)...');
+    // 2. Authenticate Admin (Admin)
+    console.log('\n[Test 2] Logging in Admin (admin@hospital.com)...');
     const adminLogin = await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'ravi.kumar@hospital.com', password: 'password123' }),
+      body: JSON.stringify({ email: 'admin@hospital.com', password: 'Admin@123' }),
     });
     console.assert(adminLogin.status === 200, `Admin login failed: ${JSON.stringify(adminLogin.data)}`);
     const adminToken = adminLogin.data.data.token;
     console.log('✓ Admin logged in successfully.');
 
     // 3. Authenticate Technician (Arun Kumar)
-    console.log('\n[Test 3] Logging in Technician (arun.kumar@hospital.com)...');
+    console.log('\n[Test 3] Logging in Technician (arun@hospital.com)...');
     const techLogin = await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'arun.kumar@hospital.com', password: 'password123' }),
+      body: JSON.stringify({ email: 'arun@hospital.com', password: 'Tech@123' }),
     });
     console.assert(techLogin.status === 200, `Tech login failed: ${JSON.stringify(techLogin.data)}`);
     const techToken = techLogin.data.data.token;
@@ -109,11 +109,11 @@ const runVerification = async () => {
     console.log(`  Existing active request reference: ${dupRes.data.existingRequest.requestId} (${dupRes.data.existingRequest.status})`);
 
     // 7. Admin assigns Technician (Arun Kumar) to the SAME request
-    console.log(`\n[Test 7] Admin assigning Technician Arun Kumar (TEC-001) to ${createdReq.requestId}...`);
+    console.log(`\n[Test 7] Admin assigning Technician Arun Kumar (TEC-000) to ${createdReq.requestId}...`);
     const assignRes = await request(`/maintenance/${createdReq.requestId}/assign`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ technicianId: 'TEC-001' }),
+      body: JSON.stringify({ technicianId: 'TEC-000' }),
     });
     console.assert(assignRes.status === 200, `Assign failed: ${JSON.stringify(assignRes.data)}`);
     console.assert(assignRes.data.data.status === 'ASSIGNED', 'Status not ASSIGNED');
