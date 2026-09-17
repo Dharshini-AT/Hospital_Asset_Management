@@ -62,6 +62,15 @@ const runVerification = async () => {
     const techToken = techLogin.data.data.token;
     console.log('✓ Technician logged in successfully.');
 
+    // Reset test asset IP-102 state for clean test isolation
+    const Asset = require('../models/Asset');
+    const MaintenanceRequest = require('../models/MaintenanceRequest');
+    const targetAsset = await Asset.findOne({ assetId: 'IP-102' });
+    if (targetAsset) {
+      await MaintenanceRequest.deleteMany({ assetId: targetAsset._id, status: { $ne: 'COMPLETED' } });
+      await Asset.findByIdAndUpdate(targetAsset._id, { currentStatus: 'AVAILABLE', currentCondition: 'GOOD' });
+    }
+
     // 4. Check Asset IP-102 (Infusion Pump)
     console.log('\n[Test 4] Querying Asset IP-102...');
     const assetRes = await request('/assets/IP-102', {
@@ -110,6 +119,7 @@ const runVerification = async () => {
 
     // 7. Admin assigns Technician (Arun Kumar) to the SAME request
     console.log(`\n[Test 7] Admin assigning Technician Arun Kumar (TEC-000) to ${createdReq.requestId}...`);
+    await User.findOneAndUpdate({ userId: 'TEC-000' }, { availabilityStatus: 'AVAILABLE' });
     const assignRes = await request(`/maintenance/${createdReq.requestId}/assign`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${adminToken}` },
