@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, ShieldCheck, Trash2, UserPlus, Mail, Lock, Phone, Briefcase, Building, Wrench } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
